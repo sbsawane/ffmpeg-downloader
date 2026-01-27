@@ -1,0 +1,9 @@
+{
+  "name": "com.my_downloader",
+  "description": "FFmpeg Native Host",
+  "path": "F:\\Projects\\ffmpeg-downloader\\native-host\\start_host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://golkeebcmagmpmmjelpjdngobiamlgpi/"
+  ]
+}

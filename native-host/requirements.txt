@@ -1,0 +1,4 @@
+# Python dependencies for FFmpeg Downloader native host
+# Install with: pip install -r requirements.txt
+
+psutil

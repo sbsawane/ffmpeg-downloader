@@ -1,0 +1,9 @@
+{
+  "name": "com.my_downloader",
+  "description": "FFmpeg Native Host",
+  "path": "F:\\Projects\\ffmpeg-downloader\\native-host\\start_host.bat",
+  "type": "stdio",
+  "allowed_extensions": [
+    "{5c82a32a-c068-486a-86ca-41e05f7a72b0}"
+  ]
+}

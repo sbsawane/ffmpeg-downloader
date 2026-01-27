@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r native-host/requirements.txt
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Package Chrome Extension
+        run: |
+          cd extension
+          zip -r ../ffmpeg-downloader-chrome-${{ steps.get_version.outputs.VERSION }}.zip . -x "manifest-firefox.json"
+
+      - name: Package Firefox Extension
+        run: |
+          cd extension
+          mv manifest-firefox.json manifest.json.tmp
+          mv manifest.json manifest-chrome.json
+          mv manifest.json.tmp manifest.json
+          zip -r ../ffmpeg-downloader-firefox-${{ steps.get_version.outputs.VERSION }}.zip . -x "manifest-chrome.json"
+
+      - name: Package Native Host
+        run: |
+          zip -r native-host-${{ steps.get_version.outputs.VERSION }}.zip native-host/ -x "native-host/__pycache__/*" -x "native-host/*.pyc"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ffmpeg-downloader-chrome-${{ steps.get_version.outputs.VERSION }}.zip
+            ffmpeg-downloader-firefox-${{ steps.get_version.outputs.VERSION }}.zip
+            native-host-${{ steps.get_version.outputs.VERSION }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
