@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 LEARNING_GUIDE.md
 
+# Build outputs
+dist/
+
 # C extensions
 *.so
 
