@@ -1,27 +1,35 @@
 @echo off
 REM Package extension for distribution
 REM Creates ZIP files for Chrome and Firefox
+setlocal enabledelayedexpansion
 
 echo ================================================
 echo   FFmpeg Stream Downloader - Packager
 echo ================================================
 echo.
 
+REM Read version from VERSION file
+set /p VERSION=<VERSION
+echo   Version: %VERSION%
+echo.
+
 REM Create dist folder
 if not exist "dist" mkdir "dist"
 
-REM Get current date for filename
-for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /format:list') do set datetime=%%I
-set VERSION=1.1
-set DATESTAMP=%datetime:~0,8%
-
-echo [1/3] Packaging Chrome extension...
-if exist "dist\chrome-extension.zip" del "dist\chrome-extension.zip"
-powershell -Command "Compress-Archive -Path 'extension\manifest.json','extension\background.js','extension\popup.html','extension\popup.js' -DestinationPath 'dist\chrome-extension.zip' -Force"
-echo       Created: dist\chrome-extension.zip
+echo [1/4] Updating manifest versions...
+REM Ensure manifests have correct version
+powershell -Command "$content = Get-Content 'extension\manifest.json' -Raw; $content = $content -replace '\"version\": \"[^\"]+\"', '\"version\": \"%VERSION%\"'; Set-Content 'extension\manifest.json' $content -NoNewline"
+powershell -Command "$content = Get-Content 'extension\manifest-firefox.json' -Raw; $content = $content -replace '\"version\": \"[^\"]+\"', '\"version\": \"%VERSION%\"'; Set-Content 'extension\manifest-firefox.json' $content -NoNewline"
+echo       Manifests updated to v%VERSION%
 
 echo.
-echo [2/3] Building Firefox extension...
+echo [2/4] Packaging Chrome extension...
+if exist "dist\chrome-extension-v%VERSION%.zip" del "dist\chrome-extension-v%VERSION%.zip"
+powershell -Command "Compress-Archive -Path 'extension\manifest.json','extension\background.js','extension\popup.html','extension\popup.js' -DestinationPath 'dist\chrome-extension-v%VERSION%.zip' -Force"
+echo       Created: dist\chrome-extension-v%VERSION%.zip
+
+echo.
+echo [3/4] Building Firefox extension...
 if exist "build\firefox" rmdir /s /q "build\firefox"
 mkdir "build\firefox"
 copy "extension\background.js" "build\firefox\" >nul
@@ -29,18 +37,19 @@ copy "extension\popup.html" "build\firefox\" >nul
 copy "extension\popup.js" "build\firefox\" >nul
 copy "extension\manifest-firefox.json" "build\firefox\manifest.json" >nul
 
-echo [3/3] Packaging Firefox extension...
-if exist "dist\firefox-extension.zip" del "dist\firefox-extension.zip"
-powershell -Command "Compress-Archive -Path 'build\firefox\*' -DestinationPath 'dist\firefox-extension.zip' -Force"
-echo       Created: dist\firefox-extension.zip
+echo [4/4] Packaging Firefox extension...
+if exist "dist\firefox-extension-v%VERSION%.zip" del "dist\firefox-extension-v%VERSION%.zip"
+powershell -Command "Compress-Archive -Path 'build\firefox\*' -DestinationPath 'dist\firefox-extension-v%VERSION%.zip' -Force"
+echo       Created: dist\firefox-extension-v%VERSION%.zip
 
 echo.
 echo ================================================
 echo   Packages created in 'dist' folder:
 echo ================================================
 echo.
-echo   Chrome:  dist\chrome-extension.zip
-echo   Firefox: dist\firefox-extension.zip
+echo   Version: %VERSION%
+echo   Chrome:  dist\chrome-extension-v%VERSION%.zip
+echo   Firefox: dist\firefox-extension-v%VERSION%.zip
 echo.
 echo ------------------------------------------------
 echo   INSTALLATION INSTRUCTIONS:
