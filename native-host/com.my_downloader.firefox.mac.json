@@ -1,0 +1,9 @@
+{
+  "name": "com.my_downloader",
+  "description": "FFmpeg Native Host for Firefox",
+  "path": "/PATH/TO/ffmpeg-downloader/native-host/start_host.sh",
+  "type": "stdio",
+  "allowed_extensions": [
+    "ffmpeg-downloader@example.com"
+  ]
+}

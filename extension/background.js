@@ -1,5 +1,6 @@
 // Cross-browser compatibility (Chrome uses 'chrome', Firefox uses 'browser')
 const API = typeof browser !== 'undefined' ? browser : chrome;
+const IS_FIREFOX = typeof browser !== 'undefined';
 
 // Listen for media files - expanded patterns
 const MEDIA_EXTENSIONS = ['.m3u8', '.mpd', '.mp4', '.flv', '.webm', '.mkv', '.avi', '.mov'];
@@ -8,7 +9,7 @@ const MEDIA_PATTERNS = ['playlist', 'chunklist', 'master', 'index', 'manifest', 
 // Helper function for setting badge (works with both Chrome MV3 and Firefox MV2)
 function setBadge(text) {
   try {
-    if (typeof browser !== 'undefined') {
+    if (IS_FIREFOX) {
       // Firefox MV2
       browser.browserAction.setBadgeText({ text: text });
     } else {
@@ -20,6 +21,28 @@ function setBadge(text) {
   }
 }
 
+// Cross-browser native messaging helper
+// Firefox returns Promises, Chrome uses callbacks
+function sendNativeMessage(hostName, message) {
+  return new Promise((resolve, reject) => {
+    if (IS_FIREFOX) {
+      // Firefox: Promise-based API
+      browser.runtime.sendNativeMessage(hostName, message)
+        .then(response => resolve(response))
+        .catch(error => reject(error));
+    } else {
+      // Chrome: Callback-based API
+      chrome.runtime.sendNativeMessage(hostName, message, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve(response);
+        }
+      });
+    }
+  });
+}
+
 // Initialize
 try {
   // Clear storage on startup
@@ -29,9 +52,12 @@ try {
   console.log("Initialization error:", e.message);
 }
 
-// Monitor web requests for media files (Chrome MV3 compatible)
+// Monitor web requests for media files (Cross-browser compatible)
 try {
-  chrome.webRequest.onBeforeRequest.addListener(
+  // Use API for cross-browser compatibility (Firefox uses browser.*, Chrome uses chrome.*)
+  const webRequestAPI = typeof browser !== 'undefined' ? browser.webRequest : chrome.webRequest;
+  
+  webRequestAPI.onBeforeRequest.addListener(
     (details) => {
       const url = details.url.toLowerCase();
       const originalUrl = details.url;
@@ -67,15 +93,11 @@ try {
 API.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.command === "download") {
     console.log("Download request:", message);
-    API.runtime.sendNativeMessage(
-      "com.my_downloader",
-      { url: message.url, filename: message.filename },
-      (response) => {
-        if (API.runtime.lastError) {
-          const errorMsg = API.runtime.lastError.message || "Unknown native host error";
-          console.error("Native Host Error:", errorMsg);
-          sendResponse({ status: "error", error: errorMsg });
-        } else if (response && response.status === "success") {
+    
+    // Use cross-browser native messaging helper
+    sendNativeMessage("com.my_downloader", { url: message.url, filename: message.filename })
+      .then(response => {
+        if (response && response.status === "success") {
           console.log("Download started successfully:", response);
           sendResponse({ 
             status: "started", 
@@ -95,22 +117,28 @@ API.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.warn("Unexpected response from native host:", response);
           sendResponse({ status: "error", error: "Invalid response from native host" });
         }
-      }
-    );
-    return true; 
+      })
+      .catch(error => {
+        const errorMsg = error.message || "Unknown native host error";
+        console.error("Native Host Error:", errorMsg);
+        sendResponse({ status: "error", error: errorMsg });
+      });
+    
+    return true; // Keep message channel open for async response
   }
   
   if (message.command === "kill") {
     const pid = message.pid;
     if (pid) {
-      API.runtime.sendNativeMessage(
-        "com.my_downloader",
-        { command: "kill", pid: pid },
-        (response) => {
+      sendNativeMessage("com.my_downloader", { command: "kill", pid: pid })
+        .then(response => {
           console.log("Kill response:", response);
           sendResponse({ status: "killed" });
-        }
-      );
+        })
+        .catch(error => {
+          console.error("Kill error:", error);
+          sendResponse({ status: "error", error: error.message });
+        });
       return true;
     }
   }
@@ -124,11 +152,9 @@ function startProgressMonitoring(pid, filename, path) {
   const maxStuckChecks = 60; // Consider complete after 30 seconds of no growth
   
   const progressInterval = setInterval(() => {
-    // Check file size by sending get-progress command
-    API.runtime.sendNativeMessage(
-      "com.my_downloader",
-      { command: "get-progress", pid: pid, filename: filename },
-      (response) => {
+    // Check file size by sending get-progress command (cross-browser)
+    sendNativeMessage("com.my_downloader", { command: "get-progress", pid: pid, filename: filename })
+      .then(response => {
         API.storage.local.get(['downloads'], (result) => {
           const downloads = result.downloads || [];
           const download = downloads.find(d => d.pid === pid);
@@ -185,7 +211,13 @@ function startProgressMonitoring(pid, filename, path) {
             }
           }
         });
-      }
-    );
+      })
+      .catch(error => {
+        console.log("Progress check failed:", error.message);
+        stuckCount++;
+        if (stuckCount >= maxStuckChecks) {
+          clearInterval(progressInterval);
+        }
+      });
   }, 2000); // Check every 2 seconds
 }

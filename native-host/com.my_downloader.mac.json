@@ -1,0 +1,9 @@
+{
+  "name": "com.my_downloader",
+  "description": "FFmpeg Native Host",
+  "path": "/PATH/TO/ffmpeg-downloader/native-host/start_host.sh",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://YOUR_EXTENSION_ID_HERE/"
+  ]
+}

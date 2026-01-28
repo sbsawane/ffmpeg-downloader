@@ -6,8 +6,47 @@ import os
 import re
 import threading
 import signal
+import platform
+import shutil
 from urllib.parse import urlparse
 from pathlib import Path
+
+# Cross-platform FFmpeg path detection
+def get_ffmpeg_path():
+    """Get FFmpeg executable path based on OS"""
+    if platform.system() == 'Windows':
+        # Check common Windows locations
+        possible_paths = [
+            'C:\\ffmpeg\\ffmpeg.exe',
+            'C:\\ffmpeg\\bin\\ffmpeg.exe',
+            'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+            'C:\\Program Files (x86)\\ffmpeg\\bin\\ffmpeg.exe',
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                return path
+        # Check if in PATH
+        ffmpeg_in_path = shutil.which('ffmpeg')
+        if ffmpeg_in_path:
+            return ffmpeg_in_path
+        return 'C:\\ffmpeg\\ffmpeg.exe'  # Default fallback
+    else:
+        # Mac/Linux - check if in PATH first
+        ffmpeg_in_path = shutil.which('ffmpeg')
+        if ffmpeg_in_path:
+            return ffmpeg_in_path
+        # Common Mac locations (Homebrew)
+        if platform.system() == 'Darwin':
+            if os.path.exists('/opt/homebrew/bin/ffmpeg'):
+                return '/opt/homebrew/bin/ffmpeg'
+            if os.path.exists('/usr/local/bin/ffmpeg'):
+                return '/usr/local/bin/ffmpeg'
+        # Linux common locations
+        if os.path.exists('/usr/bin/ffmpeg'):
+            return '/usr/bin/ffmpeg'
+        return 'ffmpeg'  # Assume in PATH
+
+FFMPEG_PATH = get_ffmpeg_path()
 
 # Setup logs directory
 LOGS_DIR = Path(__file__).parent.parent / "logs"
@@ -190,10 +229,12 @@ def main():
         
         log_message(f"\n[INFO] URL: {url}")
         log_message(f"[INFO] Output: {download_path}")
+        log_message(f"[INFO] FFmpeg path: {FFMPEG_PATH}")
+        log_message(f"[INFO] Platform: {platform.system()}")
         
         # Start FFmpeg with proper configuration
         ffmpeg_cmd = [
-            'C:\\ffmpeg\\ffmpeg.exe',
+            FFMPEG_PATH,
             '-loglevel', 'info',
             '-y', 
             '-i', url, 
@@ -202,19 +243,22 @@ def main():
             download_path
         ]
         
+        # Platform-specific process creation
+        popen_kwargs = {
+            'stdout': subprocess.DEVNULL,
+            'stderr': subprocess.DEVNULL,
+            'stdin': subprocess.DEVNULL,
+            'shell': False,
+        }
+        
         # Windows-specific: Detach FFmpeg from native host process
-        creationflags = 0
         if sys.platform == 'win32':
-            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+            popen_kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            # Unix: Start new process group
+            popen_kwargs['start_new_session'] = True
 
-        process = subprocess.Popen(
-            ffmpeg_cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            shell=False,
-            creationflags=creationflags
-        )
+        process = subprocess.Popen(ffmpeg_cmd, **popen_kwargs)
         
         pid = process.pid
         log_message(f"[INFO] FFmpeg started with PID: {pid}")
