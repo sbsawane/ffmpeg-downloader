@@ -25,17 +25,19 @@ echo       Manifests updated to v%VERSION%
 echo.
 echo [2/4] Packaging Chrome extension...
 if exist "dist\chrome-extension-v%VERSION%.zip" del "dist\chrome-extension-v%VERSION%.zip"
-powershell -Command "Compress-Archive -Path 'extension\manifest.json','extension\background.js','extension\popup.html','extension\popup.js' -DestinationPath 'dist\chrome-extension-v%VERSION%.zip' -Force"
+powershell -Command "Compress-Archive -Path 'extension\manifest.json','extension\background.js','extension\popup.html','extension\popup.js','extension\icons' -DestinationPath 'dist\chrome-extension-v%VERSION%.zip' -Force"
 echo       Created: dist\chrome-extension-v%VERSION%.zip
 
 echo.
 echo [3/4] Building Firefox extension...
 if exist "build\firefox" rmdir /s /q "build\firefox"
 mkdir "build\firefox"
+mkdir "build\firefox\icons"
 copy "extension\background.js" "build\firefox\" >nul
 copy "extension\popup.html" "build\firefox\" >nul
 copy "extension\popup.js" "build\firefox\" >nul
 copy "extension\manifest-firefox.json" "build\firefox\manifest.json" >nul
+copy "extension\icons\*" "build\firefox\icons\" >nul 2>nul
 
 echo [4/4] Packaging Firefox extension...
 if exist "dist\firefox-extension-v%VERSION%.zip" del "dist\firefox-extension-v%VERSION%.zip"

@@ -10,11 +10,15 @@ echo Building Firefox extension...
 REM Clean and create build directory
 if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
 mkdir "%BUILD_DIR%"
+mkdir "%BUILD_DIR%\icons"
 
 REM Copy all files except manifests
 copy "%SOURCE_DIR%\background.js" "%BUILD_DIR%\"
 copy "%SOURCE_DIR%\popup.html" "%BUILD_DIR%\"
 copy "%SOURCE_DIR%\popup.js" "%BUILD_DIR%\"
+
+REM Copy icons
+copy "%SOURCE_DIR%\icons\*" "%BUILD_DIR%\icons\" >nul 2>nul
 
 REM Copy Firefox manifest as manifest.json
 copy "%SOURCE_DIR%\manifest-firefox.json" "%BUILD_DIR%\manifest.json"
